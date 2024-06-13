@@ -21,9 +21,7 @@ class Admin(commands.GroupCog, name="admin"):
             await self.bot.auto_reload_extensions()
             content="All Extensions have been reloaded!"
         else:
-            try:
-                await self.bot.reload_extension(extension)
-            except Exception as e: print(e)
+            await self.bot.reload_extension(extension)
             content = f"Reloaded `{extension}`!"
         await inter.edit_original_response(content=content)
     

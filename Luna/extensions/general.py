@@ -11,13 +11,13 @@ class General(commands.GroupCog, name="general"):
 
     @app_commands.command(name="ping", description="Check the bot's latency")
     async def ping(self, inter: Interaction) -> None:
-        await inter.response.defer(ephemeral=True, thinking=True) #Optional defer | 1 extra request
+        await inter.response.defer(ephemeral=True, thinking=True)
         embed = discord.Embed(title="My Latency", description=f"{round(self.bot.latency*1000)}ms", colour=discord.Colour.random())
         await inter.edit_original_response(embed=embed)
     
     @app_commands.command(name="uptime", description="Check the bot's uptime")
     async def uptime(self, inter: Interaction) -> None:
-        await inter.response.defer(ephemeral=True, thinking=True) #Optional defer | 1 extra request
+        await inter.response.defer(ephemeral=True, thinking=True) 
         embed = discord.Embed(title="My Uptime", description=f"Days:`{self.bot.uptime.days}` \nHours: `{self.bot.uptime.hours}` \nMinutes: `{self.bot.uptime.minutes}` \nSeconds: `{self.bot.uptime.seconds}`", color=discord.Color.random())
         await inter.edit_original_response(embed=embed)
 

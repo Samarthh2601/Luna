@@ -16,12 +16,8 @@ class Anime(commands.GroupCog, name="anime"):
     @app_commands.command(name="reaction", description="Get a reaction image from the bot!")
     async def reaction(self, inter: Interaction, member: discord.User | discord.Member, choice: str) -> None:
         await inter.response.defer(thinking=True)
-
-        try:
-            embed = discord.Embed(title=f"{choice.capitalize()}!", description=f"{inter.user.mention} and {member.mention}").set_image(url=await (getattr(self.client, choice))())
-            await inter.edit_original_response(embed=embed)
-        except Exception as e:
-            print(e)
+        embed = discord.Embed(title=f"{choice.capitalize()}!", description=f"{inter.user.mention} and {member.mention}").set_image(url=await (getattr(self.client, choice))())
+        await inter.edit_original_response(embed=embed)
 
 async def setup(bot: Luna):
     await bot.add_cog(Anime(bot))

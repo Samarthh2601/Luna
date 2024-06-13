@@ -17,7 +17,6 @@ class Messages(commands.GroupCog, name="message"):
     async def bookmark(self, inter: discord.Interaction, id_or_link: str) -> None:
         await inter.response.defer()
         message_id = get_ids_from_link(id_or_link).message_id
-        print(message_id)
         message = await inter.channel.fetch_message(message_id)
         message_content = await get_message_assets(message)
         embed = discord.Embed()
@@ -40,25 +39,17 @@ class Messages(commands.GroupCog, name="message"):
     @app_commands.command(name="track", description="Track a message!")
     async def track(self, inter: discord.Interaction, id_or_link: str, message_channel: discord.TextChannel) -> discord.InteractionMessage | None:
         await inter.response.defer(ephemeral=True, thinking=True)
-        print(1)
         if (message_id:=get_ids_from_link(id_or_link).message_id) is None:
             return await inter.edit_original_response(content="Invalid message ID/link!")
-        print(2)
-        try:
-            if (await self.bot.db.messages.read_user_message(inter.user.id, message_id)):
-                return await inter.edit_original_response(content="You're already tracking that message!")
-        except Exception as e:
-            print(e)
-        print(3)
+        if (await self.bot.db.messages.read_user_message(inter.user.id, message_id)):
+            return await inter.edit_original_response(content="You're already tracking that message!")
+        
         if (limit:=(await self.bot.db.messages.read_user(inter.user.id))):
             if len(limit) >= 3:
                 embed = discord.Embed(title="Currently tracking messages!", description=get_current_tracking_ftstring(limit, ft_string=True))
                 return await inter.edit_original_response(content="You are already tracking **3** messages! You can only track **3** messages at a time!", embed=embed)
-        print(4)
         message = await message_channel.fetch_message(message_id)
-        print(5)
         await inter.edit_original_response(content=f"Now tracking [this]({get_current_tracking_ftstring(Record(message_id, inter.user.id, message_channel.guild.id, message_channel.id))}) message!")
-        print(6)
         embed = discord.Embed()
         if message.content:
             embed.description = f"**Message Content**: {message.content}" 
@@ -69,12 +60,9 @@ class Messages(commands.GroupCog, name="message"):
         embed.add_field(name="Message author", value=message.author, inline=False)
         embed.add_field(name="Message", value=f"[Click Here]({message.jump_url})", inline=False)
         embed.set_image(url=message.attachments[0].url) if message.attachments else ...
-        print(7)
-        try:
-            m = await inter.user.send(embed=embed)
-            await self.bot.db.messages.create(inter.user.id, message_channel.id, message_id, message_channel.guild.id, m.id, m.channel.id)
-        except discord.Forbidden:
-            await inter.edit_original_response(content=f"{inter.user.mention}, Enable your DMs!")
+        m = await inter.user.send(embed=embed)
+        await self.bot.db.messages.create(inter.user.id, message_channel.id, message_id, message_channel.guild.id, m.id, m.channel.id)
+        await inter.edit_original_response(content=f"{inter.user.mention}, Enable your DMs!")
 
     @app_commands.command(name="untrack", description="Untrack a message!")
     async def untrack(self, inter: discord.Interaction, id_or_link: str) -> discord.InteractionMessage | None:
