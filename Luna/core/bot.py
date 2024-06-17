@@ -83,6 +83,12 @@ class Luna(commands.Bot):
         if isinstance(error, discord.app_commands.CommandOnCooldown):
             return await interaction.response.send_message(f"Slow Down! Retry after **{error.retry_after:.2f}** seconds", ephemeral=True)
         
+        if isinstance(error, discord.app_commands.MissingPermissions):
+            return await interaction.response.send_message("You do not have the required permissions to run this command", ephemeral=True)
+        
+        if isinstance(error, discord.app_commands.BotMissingPermissions):
+            return await interaction.response.send_message("I do not have the required permissions to run this command", ephemeral=True)
+
         self.logger.error(error)
 
 

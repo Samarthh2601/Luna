@@ -44,9 +44,24 @@ class General(commands.GroupCog, name="users"):
         guild_records = await self.bot.db.ranks._raw_guild_records(inter.guild.id)
         guild_rank = self.get_guild_rank(guild_records, inter.user)
         
-        embed = discord.Embed(title=f"{inter.user.name}'s experience!").set_thumbnail(url=inter.user.display_avatar.url).add_field(name="Experience", value=user_record.experience).add_field(name="Level", value=user_record.level).add_field(name="Rank", value=guild_rank)
+        embed = discord.Embed(title=f"{inter.user.name}'s experience!", color=discord.Color.random()).set_thumbnail(url=inter.user.display_avatar.url).add_field(name="Experience", value=user_record.experience, inline=False).add_field(name="Level", value=user_record.level, inline=False).add_field(name="Rank", value=guild_rank, inline=False)
         await inter.edit_original_response(embed=embed)
 
+
+    @app_commands.command(name="leaderboard", description="Check the leaderboard")
+    async def leaderboard(self, inter: Interaction) -> discord.InteractionResponse | None:
+        await inter.response.defer(ephemeral=True, thinking=True)
+
+        all_records = await self.bot.db.ranks.all_guild_records(inter.guild.id)
+
+        if not all_records:
+            return await inter.edit_original_response(content="No records found")
+
+        all_records.sort(key=lambda x: x.experience, reverse=True)
+
+        embed = discord.Embed(title="Leaderboard (Net)", description="\n".join([f"{idx+1}. <@{record.user_id}> - XP **{record.experience}** - lvl **{record.level}**" for idx, record in enumerate(all_records[:10])]), color=discord.Colour.random())
+
+        await inter.edit_original_response(embed=embed)
 
 async def setup(bot: Luna):
     await bot.add_cog(General(bot))

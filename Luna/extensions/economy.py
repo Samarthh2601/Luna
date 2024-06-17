@@ -11,13 +11,19 @@ class Economy(commands.GroupCog, name="economy"):
     def __init__(self, bot: Luna):
         self.bot = bot
 
+    async def cog_check(self, inter: Interaction) -> bool:
+        if inter.user.bot:
+            return False
+        return True
+
     @app_commands.command(name="balance", description="Check your balance")
-    async def balance(self, inter: Interaction) -> None:
+    async def balance(self, inter: Interaction, user: discord.User=None) -> None:
         await inter.response.defer(ephemeral=True, thinking=True)
 
-        user = await self.bot.db.economy.create(inter.user.id)
+        user = user or inter.user
+        user_ = await self.bot.db.economy.create(user.id)
 
-        embed = discord.Embed(title="Balance", description=f"Wallet: **{user.wallet}**\nBank:**{user.bank}**").set_thumbnail(url=inter.user.display_avatar.url)
+        embed = discord.Embed(title="Balance", description=f"Wallet: **{user_.wallet}**\nBank:**{user_.bank}**").set_thumbnail(url=inter.user.display_avatar.url)
 
         await inter.edit_original_response(embed=embed)
     
@@ -54,7 +60,7 @@ class Economy(commands.GroupCog, name="economy"):
 
     @app_commands.command(name="transfer", description="Transfer money to another user")
     async def transfer(self, inter: Interaction, user: discord.User, amount: int) -> None | discord.InteractionResponse:
-        await inter.response.defer(ephemeral=True, thinking=True)
+        await inter.response.defer(thinking=True)
 
         if user.bot:
             return await inter.edit_original_response(content="You can't transfer money to a bot")
@@ -90,8 +96,8 @@ class Economy(commands.GroupCog, name="economy"):
 
         await inter.edit_original_response(embed=embed)
 
-    @commands.cooldown(1, 30, commands.BucketType.user)
-    @commands.command(name="beg", description="Beg for Coins!")
+    @app_commands.checks.cooldown(1, 30)
+    @app_commands.command(name="beg", description="Beg for Coins!")
     async def beg(self, inter: Interaction) -> discord.InteractionResponse | None:
         await inter.response.defer(ephemeral=True, thinking=True)
         c = random.randint(1, 2)
@@ -102,8 +108,8 @@ class Economy(commands.GroupCog, name="economy"):
         await inter.edit_original_response(content=f"You really got **{random_money}** Luna Coins, lucky you! You now have **{user_data.wallet+random_money}** Luna Coins in your wallet!")
         return await self.bot.db.economy.update(inter.user.id, wallet=user_data.wallet+random_money)    
        
-    @commands.cooldown(1, 30, commands.BucketType.user)
-    @commands.command(name="search", description="Search for a few Luna Coins, maybe")
+    @app_commands.checks.cooldown(1, 30)
+    @app_commands.command(name="search", description="Search for a few Luna Coins, maybe")
     async def search(self, inter: Interaction) -> discord.InteractionResponse | None:
         await inter.response.defer(ephemeral=True, thinking=True)
         data = await self.bot.db.economy.create(inter.user.id)
@@ -119,8 +125,9 @@ class Economy(commands.GroupCog, name="economy"):
         await self.bot.db.economy.update(inter.user.id, wallet=data.wallet+r_money)
         return await inter.edit_original_response(content=f"Lucky you, found {r_money} Luna Coins! You now have {data.wallet+r_money} Luna Coins in your wallet!")
 
-    @commands.command(name="rob", description="Rob another robber (member)!", auto_defer=True, ephemeral=True)
-    async def rob_user(self, inter: Interaction, member: discord.Member) -> discord.InteractionResponse | None:
+    @app_commands.checks.cooldown(1, 3600)
+    @app_commands.command(name="rob", description="Rob another robber (User)!")
+    async def rob_user(self, inter: Interaction, member: discord.User) -> discord.InteractionResponse | None:
         await inter.response.defer(thinking=True)
         user_data = await self.bot.db.economy.create(inter.user.id)
         member_data = await self.bot.db.economy.create(member.id)
@@ -144,7 +151,97 @@ class Economy(commands.GroupCog, name="economy"):
             await self.bot.db.economy.update(inter.user.id, wallet=user_data.wallet+rc)
             await self.bot.db.economy.update(member.id, wallet=member_data.wallet-rc)
 
-    
+    @app_commands.checks.cooldown(1, 7200)
+    @app_commands.command(name="heist", description="Heist the bank of a member!")
+    async def heist_(self, inter: Interaction, member: discord.Member):
+        await inter.response.defer(thinking=True)
+        user_data = await self.bot.db.economy.create(inter.user.id)
+        if not user_data:
+            return await inter.edit_original_response(content="You do not have an account yet! Run `/create_account` to create one!")
+        member_data = await self.bot.db.economy.create(inter.user.id)
+        if member_data.bank < 1000:
+            return await inter.edit_original_response(content=f"**{member}** isn't worth it. They don't even have 1000 Dark Coins in their bank.")
+        c = random.randint(1, 4)
+        if c == 4 or c == 2:
+            return await inter.edit_original_response(content="You came back empty-handed...how sad.")
+        elif c == 3:
+            rc = random.randint(1, user_data.bank)
+            await inter.edit_original_response(content=f"**{member}** caught you while you were robbing them and stole {rc} Dark Coins from you! Your total bank balance is now **{user_data.bank-rc}**!")
+            await self.bot.db.economy.update(inter.user.id, bank=user_data.bank-rc)
+            await self.bot.db.economy.update(member.id, bank=member_data.bank+rc)
+        elif c == 1:
+            rc = random.randint(1, member_data.bank)
+            await inter.edit_original_response(content=f"You stole {rc} Dark Coins from **{member}**! Your total bank balance is now **{user_data.bank+rc}**!")
+            await self.bot.db.economy.update(inter.user.id, bank=user_data.bank+rc)
+            await self.bot.db.economy.update(member.id, bank=member_data.bank-rc)
+
+    @app_commands.checks.cooldown(1, 30)
+    @app_commands.choices(side=[app_commands.Choice(name="Heads", value="heads"), app_commands.Choice(name="Tails", value="tails")])
+    @app_commands.command(name="coinflip", description="Flip a coin and get more coins or lost them.")
+    async def cf(self, inter: Interaction, amount: int, side: str):
+        await inter.response.defer(ephemeral=True, thinking=True)
+        user_data = await self.bot.db.economy.create(inter.user.id)
+        if not user_data:
+            return await inter.edit_original_response(content="You do not have an account yet! Run `/create_account` to create one!")
+        if amount > user_data.wallet:
+            return await inter.edit_original_response(content="The amount you're trying to bet is more than your wallet balance.")
+
+        c = random.choice(["heads", "tails"])
+        await inter.edit_original_response(content="Flipping a coin for ya...")
+        if side.lower() == c:
+            await inter.edit_original_response(content=f"You won! Your wallet balance is now **{user_data.wallet+amount*2}**!")
+            return await self.bot.db.economy.update(inter.user.id, wallet=user_data.wallet+amount*2)
+
+        await inter.edit_original_response(content=f"You lost. You wallet balance is now **{user_data.wallet-amount}**!")
+        await self.bot.db.economy.update(inter.user.id, wallet=user_data.wallet-amount)
+
+    @app_commands.checks.cooldown(1, 60)
+    @app_commands.command(name="bet", description="Bet your coins for greater amounts or lose it!")
+    async def bet_coins(self, inter: Interaction, amount: int):
+        await inter.response.defer(ephemeral=True, thinking=True)
+        user_data = await self.bot.db.economy.create(inter.user.id)
+        if not user_data:
+            return await inter.edit_original_response(content="You do not have an account yet! Run `/create_account` to create one!")
+        if amount > user_data.wallet:
+            return await inter.edit_original_response(content="The amount you're trying to bet is more than your wallet balance.")
+
+        c = random.randint(1, 4)
+        if c == 1 or c == 2 or c == 3:
+            await inter.edit_original_response(content=f"You lost! Your wallet balance is now **{user_data.wallet-amount}**")
+            return await self.bot.db.economy.update(inter.user.id, wallet=user_data.wallet-amount)
+        await inter.edit_original_response(content=f"You won! Your wallet balance is now **{user_data.wallet+(amount*5)}**")
+        await self.bot.db.economy.update(inter.user.id, wallet=user_data.wallet+(amount*5))
+        
+    @app_commands.checks.cooldown(1, 30)
+    @app_commands.choices(number=[app_commands.Choice(name=str(i), value=i) for i in range(1, 7)])
+    @app_commands.command(name="roll", description="Roll the dice and earn coins!")
+    async def roll_(self, inter: Interaction, number: int):
+        await inter.response.defer(ephemeral=True, thinking=True)
+        user_data = await self.bot.db.economy.create(inter.user.id)
+        if not user_data:
+            return await inter.edit_original_response(content="You do not have an account yet! Run `/create_account` to create one!")    
+        c = random.randint(1, 6)
+        if c != number:
+            return await inter.edit_original_response(content=f"The dice rolled to **{c}** but you chose the number **{number}**")
+        await inter.edit_original_response(content=f"You won! Your wallet balance is now **{user_data.wallet+200}**")
+        await self.bot.db.economy.update(inter.user.id, wallet=user_data.wallet+200)
+
+    @app_commands.checks.cooldown(1, 45)
+    @app_commands.command(name="slots", description="Play the Slots minigame and earn coins!")    
+    async def slots(self, inter: Interaction, amount: int):
+        await inter.response.defer(ephemeral=True, thinking=True)
+        user_data = await self.bot.db.economy.create(inter.user.id)
+        if not user_data:
+            return await inter.edit_original_response(content="You do not have an account yet! Run `/create_account` to create one!")
+        if amount > user_data.wallet:
+            return await inter.edit_original_response(content="The amount you're trying to bet is more than your wallet balance.")
+
+        opts = [random.choice([":strawberry:", ":apple:", ":mango:"]) for _ in range(3)]    
+        if opts[0] == opts[1] and opts[0] == opts[2]:
+            await inter.edit_original_response(content=f"{' | '.join(opts)}, You won! Your wallet balance is now **{user_data.wallet+(amount*3)}**")
+            return await self.bot.db.economy.update(inter.user.id, wallet=user_data.wallet+(amount*3))
+        await inter.edit_original_response(content=f"{' | '.join(opts)}, You lost! Your wallet balance is now **{user_data.wallet-amount}**!")
+        await self.bot.db.economy.update(inter.user.id, wallet=user_data.wallet-amount)
 
 async def setup(bot: Luna) -> None:
     await bot.add_cog(Economy(bot))
