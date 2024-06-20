@@ -40,11 +40,11 @@ class General(commands.GroupCog, name="users"):
     async def rank(self, inter: discord.Interaction, member: discord.Member=None) -> None:
         await inter.response.defer(ephemeral=True, thinking=True)
         member = member or inter.user
-        user_record = await self.bot.db.ranks.create(inter.user.id, inter.guild.id)
+        user_record = await self.bot.db.ranks.create(member.id, inter.guild.id)
         guild_records = await self.bot.db.ranks._raw_guild_records(inter.guild.id)
-        guild_rank = self.get_guild_rank(guild_records, inter.user)
+        guild_rank = self.get_guild_rank(guild_records, member)
         
-        embed = discord.Embed(title=f"{inter.user.name}'s experience!", color=discord.Color.random()).set_thumbnail(url=inter.user.display_avatar.url).add_field(name="Experience", value=user_record.experience, inline=False).add_field(name="Level", value=user_record.level, inline=False).add_field(name="Rank", value=guild_rank, inline=False)
+        embed = discord.Embed(title=f"{member.name}'s experience!", color=discord.Color.random()).set_thumbnail(url=member.display_avatar.url).add_field(name="Experience", value=user_record.experience, inline=False).add_field(name="Level", value=user_record.level, inline=False).add_field(name="Rank", value=guild_rank, inline=False)
         await inter.edit_original_response(embed=embed)
 
 
@@ -59,7 +59,7 @@ class General(commands.GroupCog, name="users"):
 
         all_records.sort(key=lambda x: x.experience, reverse=True)
 
-        embed = discord.Embed(title="Leaderboard (Net)", description="\n".join([f"{idx+1}. <@{record.user_id}> - XP **{record.experience}** - lvl **{record.level}**" for idx, record in enumerate(all_records[:10])]), color=discord.Colour.random())
+        embed = discord.Embed(title="Leaderboard", description="\n".join([f"{idx+1}. <@{record.user_id}> - XP **{record.experience}** - lvl **{record.level}**" for idx, record in enumerate(all_records[:10])]), color=discord.Colour.random())
 
         await inter.edit_original_response(embed=embed)
 

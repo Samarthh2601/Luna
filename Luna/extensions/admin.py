@@ -13,6 +13,9 @@ class Admin(commands.GroupCog, name="admin"):
     def __init__(self, bot: Luna):
         self.bot = bot
 
+    async def cog_check(self, inter: Interaction):
+        return await self.bot.is_owner(inter.user)
+
     @app_commands.choices(extension=get_all_extension_choices())
     @app_commands.command(name="reload_extension", description="Reloads all extensions")
     async def reload_extensions(self, inter: Interaction, extension: str = None):
